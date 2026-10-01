@@ -1,0 +1,12 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const handler=require('../api/bridge');
+process.env.TRADELOCK_ENGINE_URL='https://engine.example.com';process.env.TRADELOCK_BRIDGE_SECRET='test-only-key-xxxxxxxxxxxxxxxxxxxxxxxx';
+async function call(method='GET',endpoint='setup',extra={}){let status,body,headers={};await handler({method,query:{endpoint},headers:{host:'site.example.com',origin:'https://site.example.com','content-type':'application/json'},body:{password:'example'},...extra},{setHeader:(k,v)=>headers[k]=v,status(n){status=n;return this},json(x){body=x;return this}});return{status,body,headers}}
+test('proxy guards and forwarding',async()=>{let calls=[];global.fetch=async(url,opts)=>{calls.push({url,opts});return new Response(JSON.stringify({csrf:'token'}),{headers:{'content-type':'application/json','set-cookie':'tl_session=abc; HttpOnly; SameSite=Strict; Path=/'}})};
+assert.equal((await call('GET','bad')).status,404);assert.equal((await call('DELETE')).status,405);assert.equal((await call('POST','login',{headers:{host:'site.example.com',origin:'https://evil.example.com','content-type':'application/json'}})).status,403);assert.equal(calls.length,0);
+let r=await call('POST','login');assert.equal(r.status,200);assert.match(r.headers['Set-Cookie'][0],/Secure/);assert.equal(calls[0].opts.headers['X-TradeLock-Bridge'],process.env.TRADELOCK_BRIDGE_SECRET);assert(!JSON.stringify(r).includes(process.env.TRADELOCK_BRIDGE_SECRET));
+await call('POST','order',{headers:{host:'site.example.com',origin:'https://site.example.com','content-type':'application/json',cookie:'tl_session=abc','x-csrf-token':'token'}});assert.equal(calls[1].opts.headers['X-CSRF-Token'],'token');assert.equal(calls[1].opts.headers.Cookie,'tl_session=abc');
+let n=0;global.fetch=async()=>{n++;throw Error('timeout')};r=await call('POST','order');assert.equal(n,1);assert.equal(r.status,502);assert.match(r.body.error,/check positions/);
+global.fetch=async()=>new Response('<html>offline</html>',{headers:{'content-type':'text/html'}});assert.equal((await call()).status,502);
+global.fetch=async()=>new Response(JSON.stringify({error:'Remote connector authentication failed.'}),{status:403,headers:{'content-type':'application/json'}});assert.match((await call()).body.error,/keys do not match/);
+process.env.TRADELOCK_ENGINE_URL='http://unsafe.example.com';assert.equal((await call()).status,503);
+});
