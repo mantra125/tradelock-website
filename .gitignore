@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+.vercel/
+node_modules/
+tradelock_v3_config.*
+tradelock_bridge.json
+*.log

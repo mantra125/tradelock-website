@@ -1,0 +1,1 @@
+{"name":"tradelock-vercel","private":true,"version":"1.0.0","engines":{"node":"22.x"},"scripts":{"test":"node --test test/proxy.test.cjs"}}

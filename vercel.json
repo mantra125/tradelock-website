@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": null,
+  "outputDirectory": "public",
+  "functions": {"api/bridge.js": {"maxDuration": 30}},
+  "rewrites": [{"source": "/api/:endpoint", "destination": "/api/bridge?endpoint=:endpoint"}],
+  "headers": [{"source":"/(.*)","headers":[
+    {"key":"X-Frame-Options","value":"DENY"},
+    {"key":"X-Content-Type-Options","value":"nosniff"},
+    {"key":"Referrer-Policy","value":"same-origin"},
+    {"key":"Content-Security-Policy","value":"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"}
+  ]}]
+}
